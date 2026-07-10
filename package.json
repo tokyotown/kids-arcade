@@ -1,0 +1,9 @@
+{
+  "name": "kids-arcade",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ivy's & Archie's Arcade with a shared Netlify leaderboard",
+  "dependencies": {
+    "@netlify/blobs": "*"
+  }
+}

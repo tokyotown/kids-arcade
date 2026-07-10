@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Arcade — Choose a Player</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{min-height:100%;}
+  body{
+    font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
+    background:linear-gradient(160deg,#1b1030 0%, #2a1a4a 45%, #10233a 100%);
+    color:#fff; min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:26px 16px 50px;
+  }
+  h1{font-size:clamp(30px,6vw,56px); letter-spacing:1px; text-align:center; margin-bottom:4px;
+    background:linear-gradient(90deg,#ffd84d,#37e0c8,#ff8fc7,#ffd84d);
+    -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .sub{opacity:.8; text-align:center; margin-bottom:26px; font-size:clamp(13px,2.6vw,17px);}
+  .players{display:grid; grid-template-columns:1fr 1fr; gap:20px; width:100%; max-width:760px;}
+  @media(max-width:560px){ .players{grid-template-columns:1fr;} }
+  a.player{
+    text-decoration:none; color:#fff; border-radius:22px; padding:30px 22px; text-align:center;
+    box-shadow:0 12px 0 rgba(0,0,0,.28); transition:transform .1s, box-shadow .1s; display:block;
+  }
+  a.player:active{transform:translateY(6px); box-shadow:0 6px 0 rgba(0,0,0,.28);}
+  .archie{background:linear-gradient(155deg,#ff7b1c,#12293f);}
+  .ivy{background:linear-gradient(155deg,#ff5fa2,#8a5cff);}
+  .player .big{font-size:clamp(44px,10vw,66px);}
+  .player .name{font-size:clamp(22px,4.5vw,30px); font-weight:bold; margin:8px 0 4px;}
+  .player .games{opacity:.92; font-size:clamp(12px,2.6vw,15px);}
+  .player .go{display:inline-block; margin-top:14px; background:rgba(0,0,0,.28); border:2px solid rgba(255,255,255,.5);
+    border-radius:999px; padding:8px 20px; font-weight:bold;}
+
+  .board{width:100%; max-width:760px; margin-top:34px; background:rgba(255,255,255,.06);
+    border-radius:20px; padding:20px; }
+  .board h2{text-align:center; color:#ffd84d; font-size:clamp(20px,4vw,26px); margin-bottom:4px;}
+  .board .note{text-align:center; opacity:.7; font-size:13px; margin-bottom:16px;}
+  .cols{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  @media(max-width:560px){ .cols{grid-template-columns:1fr;} }
+  .col h3{font-size:17px; margin-bottom:8px; padding-bottom:6px; border-bottom:2px solid rgba(255,255,255,.15);}
+  .col.archie h3{color:#ff9d4d;} .col.ivy h3{color:#ff8fc7;}
+  .g{margin-bottom:12px;}
+  .g .glabel{font-weight:bold; font-size:14px; opacity:.95;}
+  .g .row{display:flex; justify-content:space-between; font-size:13px; opacity:.9; padding:1px 0;}
+  .g .row b{color:#ffd84d;}
+  .g .empty{font-size:12px; opacity:.5;}
+  .refresh{display:block; margin:18px auto 0; cursor:pointer; border:none; font-family:inherit; font-weight:bold;
+    color:#fff; background:linear-gradient(150deg,#8a5cff,#ff5fa2); border-radius:999px; padding:10px 22px; box-shadow:0 5px 0 rgba(0,0,0,.25);}
+  .foot{opacity:.5; font-size:12px; margin-top:26px; text-align:center;}
+</style>
+</head>
+<body>
+  <h1>🕹️ The Arcade</h1>
+  <div class="sub">Pick your player — each has their own games. High scores are shared here for everyone to see.</div>
+
+  <div class="players">
+    <a class="player archie" href="archie.html">
+      <div class="big">🏀🏍️</div>
+      <div class="name">Archie's Arcade</div>
+      <div class="games">Buzzer Beater · Trail Blazer · Big Kick · Fetch Frenzy</div>
+      <span class="go">Play ▶</span>
+    </a>
+    <a class="player ivy" href="ivy.html">
+      <div class="big">💃🤸</div>
+      <div class="name">Ivy's Arcade</div>
+      <div class="games">Dance Studio · Gym Star · Hoop Star · Fetch Frenzy</div>
+      <span class="go">Play ▶</span>
+    </a>
+  </div>
+
+  <div class="board">
+    <h2>🏆 All-Time Top Scores</h2>
+    <div class="note" id="boardNote">Loading the leaderboard…</div>
+    <div class="cols">
+      <div class="col archie"><h3>🟠 Archie</h3><div id="archieBoard"></div></div>
+      <div class="col ivy"><h3>💜 Ivy</h3><div id="ivyBoard"></div></div>
+    </div>
+    <button class="refresh" id="refreshBtn">↻ Refresh scores</button>
+  </div>
+
+  <div class="foot">Runs on Netlify. Scores save to the cloud so they show up on any device.</div>
+
+<script>
+  const GAMES = {
+    archie: [["hoops","🏀 Buzzer Beater"],["trail","🏍️ Trail Blazer"],["footy","🏉 Big Kick"],["fetch","🐾 Fetch Frenzy"]],
+    ivy:    [["dance","💃 Dance Studio"],["gym","🤸 Gym Star"],["ball","🏀 Hoop Star"],["fetch","🐾 Fetch Frenzy"]]
+  };
+  function renderProfile(profile, data){
+    const box = document.getElementById(profile==='archie'?'archieBoard':'ivyBoard');
+    box.innerHTML = GAMES[profile].map(([g,label])=>{
+      const list = (data[profile+':'+g]||[]).slice(0,3);
+      const rows = list.length
+        ? list.map((e,i)=>`<div class="row"><span>${i+1}. ${e.name}</span><b>${e.score}</b></div>`).join('')
+        : `<div class="empty">No scores yet</div>`;
+      return `<div class="g"><div class="glabel">${label}</div>${rows}</div>`;
+    }).join('');
+  }
+  async function load(){
+    const note = document.getElementById('boardNote');
+    note.textContent = 'Loading the leaderboard…';
+    try{
+      const res = await fetch('/.netlify/functions/scores', {cache:'no-store'});
+      if(!res.ok) throw new Error('offline');
+      const data = await res.json();
+      renderProfile('archie', data); renderProfile('ivy', data);
+      const any = Object.keys(data).length>0;
+      note.textContent = any ? 'Best scores ever recorded — beat them!' : 'No scores yet — be the first to play!';
+    }catch(e){
+      renderProfile('archie', {}); renderProfile('ivy', {});
+      note.textContent = 'Leaderboard shows up once this is hosted online (Netlify). Playing locally still saves scores on your device.';
+    }
+  }
+  document.getElementById('refreshBtn').addEventListener('click', load);
+  load();
+</script>
+</body>
+</html>
