@@ -51,20 +51,20 @@
 </style>
 </head>
 <body>
-  <h1>🕹️ The Arcade</h1>
-  <div class="sub">Pick your player — each has their own games. High scores are shared here for everyone to see.</div>
+  <h1>🕹️ The Game World</h1>
+  <div class="sub">Pick your player — each has four game worlds: Arcade, Brain Games, Hunting &amp; Classics. High scores are shared here for everyone to see.</div>
 
   <div class="players">
-    <a class="player archie" href="archie.html">
+    <a class="player archie" href="play.html?player=archie">
       <div class="big">🏀🏍️</div>
-      <div class="name">Archie's Arcade</div>
-      <div class="games">Buzzer Beater · Trail Blazer · Big Kick · Fetch Frenzy</div>
+      <div class="name">Archie</div>
+      <div class="games">Arcade · Brain · Hunting · Classics — 15 games</div>
       <span class="go">Play ▶</span>
     </a>
-    <a class="player ivy" href="ivy.html">
+    <a class="player ivy" href="play.html?player=ivy">
       <div class="big">💃🤸</div>
-      <div class="name">Ivy's Arcade</div>
-      <div class="games">Dance Studio · Gym Star · Hoop Star · Fetch Frenzy</div>
+      <div class="name">Ivy</div>
+      <div class="games">Arcade · Brain · Hunting · Classics — 15 games</div>
       <span class="go">Play ▶</span>
     </a>
   </div>
@@ -82,18 +82,23 @@
   <div class="foot">Runs on Netlify. Scores save to the cloud so they show up on any device.</div>
 
 <script>
+  const EXTRA = [
+    ["Brain", [["math","🧮 Maths"],["spelling","🚀 Spelling"],["eyespy","👀 Eye Spy"],["chess","♟️ Chess"],["tictactoe","⭕ Tic Tac Toe"]]],
+    ["Hunting", [["duckdash","🦆 Duck Dash"],["outback","🦊 Outback Hunter"]]],
+    ["Classics", [["snake","🐍 Snake"],["breakout","🧱 Breakout"],["memory","🧠 Memory"],["connect4","🔴 Connect Four"]]]
+  ];
   const GAMES = {
-    archie: [["hoops","🏀 Buzzer Beater"],["trail","🏍️ Trail Blazer"],["footy","🏉 Big Kick"],["fetch","🐾 Fetch Frenzy"]],
-    ivy:    [["dance","💃 Dance Studio"],["gym","🤸 Gym Star"],["ball","🏀 Hoop Star"],["fetch","🐾 Fetch Frenzy"]]
+    archie: [["Arcade", [["hoops","🏀 Buzzer Beater"],["trail","🏍️ Trail Blazer"],["footy","🏉 Big Kick"],["fetch","🐾 Fetch Frenzy"]]]].concat(EXTRA),
+    ivy:    [["Arcade", [["dance","💃 Dance Studio"],["gym","🤸 Gym Star"],["ball","🏀 Hoop Star"],["fetch","🐾 Fetch Frenzy"]]]].concat(EXTRA)
   };
   function renderProfile(profile, data){
     const box = document.getElementById(profile==='archie'?'archieBoard':'ivyBoard');
-    box.innerHTML = GAMES[profile].map(([g,label])=>{
-      const list = (data[profile+':'+g]||[]).slice(0,3);
-      const rows = list.length
-        ? list.map((e,i)=>`<div class="row"><span>${i+1}. ${e.name}</span><b>${e.score}</b></div>`).join('')
-        : `<div class="empty">No scores yet</div>`;
-      return `<div class="g"><div class="glabel">${label}</div>${rows}</div>`;
+    box.innerHTML = GAMES[profile].map(([cat,list])=>{
+      const rows = list.map(([g,label])=>{
+        const top = (data[profile+':'+g]||[])[0];
+        return `<div class="row"><span>${label}</span><b>${top?top.score:'—'}</b></div>`;
+      }).join('');
+      return `<div class="g"><div class="glabel">${cat}</div>${rows}</div>`;
     }).join('');
   }
   async function load(){

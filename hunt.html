@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Hunting Range</title>
+<style>
+  :root{ --a:#8a5cff; --b:#ff5fa2; --c:#37e0c8; --y:#ffd84d; --bg1:#1b1030; --bg2:#2a1a4a; --paper:#fff0fb; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; min-height:100%;}
+  body{ font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif; color:var(--paper);
+    background:linear-gradient(160deg,var(--bg1),var(--bg2) 60%,#10233a); min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; padding:14px 12px 40px; }
+  a{color:inherit;}
+  .top{width:100%; max-width:860px; display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .top .home{text-decoration:none; background:rgba(0,0,0,.3); border:2px solid rgba(255,255,255,.35); color:#fff; border-radius:999px; padding:6px 12px; font-weight:bold; font-size:14px;}
+  .top h1{flex:1; text-align:center; font-size:clamp(20px,4.4vw,32px); margin:0;
+    background:linear-gradient(90deg,#fff,var(--y),var(--c),var(--b),#fff); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .pts{background:rgba(255,255,255,.12); border:2px solid var(--y); border-radius:999px; padding:5px 12px; font-weight:bold; font-size:13px; white-space:nowrap;}
+  .pts b{color:var(--y);}
+  #app{width:100%; max-width:860px;}
+  .stage{position:relative; width:100%; aspect-ratio:800/520; background:#0b1622; border-radius:18px; overflow:hidden; box-shadow:0 16px 44px rgba(0,0,0,.5), inset 0 0 0 3px rgba(255,255,255,.08);}
+  canvas{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:crosshair;}
+  .screen{position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; padding:22px; text-align:center; gap:8px;}
+  .screen.on{display:flex;}
+  .cards{display:grid; grid-template-columns:1fr 1fr; gap:14px; width:100%; max-width:560px;}
+  .card{cursor:pointer; border:none; border-radius:16px; padding:18px 12px; color:#fff; font-family:inherit; font-weight:bold; font-size:clamp(15px,3vw,19px);
+    display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:0 8px 0 rgba(0,0,0,.25);}
+  .card:active{transform:translateY(4px); box-shadow:0 4px 0 rgba(0,0,0,.25);}
+  .card .em{font-size:clamp(32px,8vw,44px);} .card small{font-weight:normal; opacity:.9; font-size:clamp(11px,2.3vw,13px);}
+  h2{margin:0; font-size:clamp(22px,5vw,34px); color:var(--y);}
+  .sub{opacity:.9; font-size:clamp(13px,2.6vw,16px); max-width:560px;}
+  .btn{cursor:pointer; border:none; font-family:inherit; font-weight:bold; border-radius:999px; padding:11px 20px; font-size:16px; color:#fff; background:linear-gradient(150deg,var(--a),var(--b)); box-shadow:0 6px 0 rgba(0,0,0,.2);}
+  .btn.ghost{background:rgba(255,255,255,.16);} .btn:active{transform:translateY(3px); box-shadow:0 3px 0 rgba(0,0,0,.2);}
+  .hud{position:absolute; top:0;left:0;right:0; display:flex; justify-content:space-between; align-items:center; padding:8px 12px; z-index:4; pointer-events:none; font-weight:bold; text-shadow:0 1px 3px rgba(0,0,0,.6); font-size:14px;}
+  .hud .back{pointer-events:auto; cursor:pointer; background:rgba(0,0,0,.4); border:2px solid rgba(255,255,255,.4); color:#fff; border-radius:999px; padding:5px 12px; font-family:inherit; font-weight:bold; font-size:13px;}
+  .hidden{display:none!important;}
+  .arcadeLink{margin-top:14px; display:inline-block;}
+</style>
+</head>
+<body>
+  <div class="top">
+    <a class="home" id="homeLink" href="index.html">⌂ Home</a>
+    <h1 id="hubTitle">Hunting Range</h1>
+    <span class="pts">⭐ <b id="pts">0</b></span>
+  </div>
+  <div id="app">
+    <div class="stage">
+      <canvas id="cv" width="800" height="520"></canvas>
+      <div class="screen on" id="menu">
+        <h2 id="menuTitle">🎯 Hunting Range</h2>
+        <div class="sub" id="menuSub">Steady aim! Pick your hunt.</div>
+        <div class="cards">
+          <button class="card" data-game="duck" style="background:linear-gradient(150deg,#3aa0ff,#37e0c8)"><span class="em">🦆</span>Duck Dash<small>Quick — 3 shots per duck!</small></button>
+          <button class="card" data-game="buck" style="background:linear-gradient(150deg,#c98a3c,#7a4a22)"><span class="em">🦊</span>Outback Hunter<small>Bag the pests, spare the roos</small></button>
+        </div>
+        <a class="btn ghost arcadeLink" id="arcadeLink" href="#">🕹️ Back to the Arcade</a>
+      </div>
+      <div class="hud hidden" id="hud"><button class="back" id="backBtn">← Range</button><div id="hudInfo"></div><div id="hudRight"></div></div>
+    </div>
+  </div>
+
+<script>
+"use strict";
+(function(){
+  const cv=document.getElementById("cv"), ctx=cv.getContext("2d"), W=cv.width, H=cv.height;
+  const PLAYERS={
+    ivy:{ name:"Ivy", age:8, theme:{a:"#8a5cff",b:"#ff5fa2",c:"#37e0c8",y:"#ffd84d",bg1:"#3a1550",bg2:"#5a2a7a"}, arcade:"ivy.html",
+      duck:{perRound:8, pass:3, speed:0.85, doubleFrom:99}, buck:{fleeSpeed:0.85, protectedEnds:false, count:4} },
+    archie:{ name:"Archie", age:11, theme:{a:"#ff7b1c",b:"#2ec4b6",c:"#ffd23f",y:"#ffd23f",bg1:"#0d1b2a",bg2:"#1c3a5e"}, arcade:"archie.html",
+      duck:{perRound:10, pass:6, speed:1.15, doubleFrom:3}, buck:{fleeSpeed:1.2, protectedEnds:true, count:6} }
+  };
+  const qp=new URLSearchParams(location.search); let pk=(qp.get("player")||"").toLowerCase(); if(!PLAYERS[pk])pk="ivy";
+  const P=PLAYERS[pk];
+  const rs=document.documentElement.style; for(const k in P.theme) rs.setProperty("--"+k,P.theme[k]);
+  document.getElementById("hubTitle").textContent=P.name+"'s Hunting Range";
+  document.getElementById("menuTitle").textContent="🎯 "+P.name+"'s Hunting Range";
+  document.getElementById("arcadeLink").href=P.arcade;
+
+  const PK="hunt_pts_"+pk;
+  const pts=()=>parseInt(localStorage.getItem(PK)||"0",10)||0;
+  function addPts(n){ try{localStorage.setItem(PK,String(pts()+Math.max(0,n)));}catch(e){} document.getElementById("pts").textContent=pts(); }
+  document.getElementById("pts").textContent=pts();
+  function submitCloud(game,score){ if(!(score>0))return; try{ fetch("/.netlify/functions/scores",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:pk,game:game,name:P.name.toUpperCase(),score:score})}).catch(function(){}); }catch(e){} }
+
+  /* audio */
+  let AC=null; function ac(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}} if(AC&&AC.state==="suspended")AC.resume(); return AC; }
+  function tone(f,d,t,v){ const a=ac(); if(!a)return; const o=a.createOscillator(),g=a.createGain(); o.type=t||"sine"; o.frequency.value=f; g.gain.value=0.0001; o.connect(g); g.connect(a.destination); const n=a.currentTime; g.gain.exponentialRampToValueAtTime(v||0.14,n+0.01); g.gain.exponentialRampToValueAtTime(0.0001,n+(d||0.15)); o.start(n); o.stop(n+(d||0.15)+0.02); }
+  function noise(dur,vol){ const a=ac(); if(!a)return; const n=a.createBufferSource(); const buf=a.createBuffer(1,Math.max(1,Math.floor(a.sampleRate*dur)),a.sampleRate); const dt=buf.getChannelData(0); for(let i=0;i<dt.length;i++)dt[i]=(Math.random()*2-1)*(1-i/dt.length); n.buffer=buf; const g=a.createGain(); g.gain.value=vol||0.2; const lp=a.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=1400; n.connect(lp); lp.connect(g); g.connect(a.destination); n.start(); }
+  const sfx={ shot(){ noise(0.14,0.25); tone(90,0.1,"square",0.12); },
+    hit(){ tone(880,0.08,"square",0.14); setTimeout(()=>tone(1320,0.12,"square",0.12),60); },
+    reload(){ tone(200,0.05,"square",0.1); setTimeout(()=>tone(300,0.05,"square",0.1),90); },
+    win(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.2,"triangle",0.12),i*120)); },
+    fail(){ tone(200,0.3,"sawtooth",0.12); setTimeout(()=>tone(120,0.4,"square",0.1),120); } };
+
+  /* screen / loop */
+  const menuEl=document.getElementById("menu"), hud=document.getElementById("hud"), hudInfo=document.getElementById("hudInfo"), hudRight=document.getElementById("hudRight");
+  let current=null, raf=null, last=0;
+  function stopLoop(){ if(raf){cancelAnimationFrame(raf); raf=null;} }
+  function loop(t){ if(!current)return; const dt=Math.min(0.05,(t-last)/1000||0); last=t; current.update(dt); current.draw(ctx); raf=requestAnimationFrame(loop); }
+  function startGame(g){ ac(); current=g; menuEl.classList.remove("on"); hud.classList.remove("hidden"); hudInfo.textContent=""; hudRight.textContent=""; g.init(); last=performance.now(); stopLoop(); raf=requestAnimationFrame(loop); }
+  function toMenu(){ stopLoop(); current=null; hud.classList.add("hidden"); ctx.clearRect(0,0,W,H); document.getElementById("pts").textContent=pts(); menuEl.classList.add("on"); }
+  document.getElementById("backBtn").onclick=toMenu;
+
+  function pos(e){ const r=cv.getBoundingClientRect(); const cx=(e.touches?e.touches[0].clientX:e.clientX), cy=(e.touches?e.touches[0].clientY:e.clientY); return { x:(cx-r.left)*(W/r.width), y:(cy-r.top)*(H/r.height) }; }
+  let pointer={x:W/2,y:H/2};
+  cv.addEventListener("mousemove",e=>{ pointer=pos(e); if(current&&current.onMove)current.onMove(pointer.x,pointer.y); });
+  cv.addEventListener("mousedown",e=>{ ac(); const p=pos(e); pointer=p; if(current&&current.onShoot)current.onShoot(p.x,p.y); });
+  cv.addEventListener("touchstart",e=>{ e.preventDefault(); ac(); const p=pos(e); pointer=p; if(current&&current.onMove)current.onMove(p.x,p.y); if(current&&current.onShoot)current.onShoot(p.x,p.y); },{passive:false});
+  cv.addEventListener("touchmove",e=>{ e.preventDefault(); const p=pos(e); pointer=p; if(current&&current.onMove)current.onMove(p.x,p.y); },{passive:false});
+
+  /* helpers */
+  function txt(c,s,x,y,size,col,align){ c.fillStyle=col||"#fff"; c.font="bold "+size+'px "Trebuchet MS",sans-serif'; c.textAlign=align||"center"; c.textBaseline="middle"; c.fillText(s,x,y); }
+  function emoji(c,ch,x,y,size){ c.font=size+'px serif'; c.textAlign="center"; c.textBaseline="middle"; c.fillText(ch,x,y); }
+  function crosshair(c,x,y){ c.strokeStyle="rgba(255,255,255,.9)"; c.lineWidth=2; c.beginPath(); c.arc(x,y,16,0,7); c.moveTo(x-24,y); c.lineTo(x-6,y); c.moveTo(x+6,y); c.lineTo(x+24,y); c.moveTo(x,y-24); c.lineTo(x,y-6); c.moveTo(x,y+6); c.lineTo(x,y+24); c.stroke(); c.fillStyle="rgba(255,80,80,.9)"; c.beginPath(); c.arc(x,y,2.5,0,7); c.fill(); }
+  function drawSky(c,dusk){ const g=c.createLinearGradient(0,0,0,H); if(dusk){ g.addColorStop(0,"#20304f"); g.addColorStop(.6,"#7a5a8a"); g.addColorStop(1,"#caa06a"); } else { g.addColorStop(0,"#6fb3e0"); g.addColorStop(.7,"#bfe3f5"); g.addColorStop(1,"#dff0e0"); } c.fillStyle=g; c.fillRect(0,0,W,H); }
+  function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+  /* ============================================================
+     DUCK DASH  (Duck Hunt inspired)  — states: intro→sniff→fly→show→(next/round)→over
+     ============================================================ */
+  const Duck={ key:"duckdash", title:"Duck Dash",
+    init(){ this.cfg=P.duck; this.round=1; this.score=0; this.spawned=0; this.roundHit=0; this.ammo=3;
+      this.ducks=[]; this.state="sniff"; this.timer=1.0; this.dogX=W*0.4; this.waveHit=false; this.msg="Round 1"; this.msgT=1.2; this.over=false; this.t=0; },
+    startWave(){ const d=this.cfg; const remaining=d.perRound-this.spawned;
+      const n=(this.round>=d.doubleFrom && remaining>=2)?2:1;
+      this.ducks=[]; const spd=(85+this.round*20)*d.speed;
+      for(let i=0;i<n;i++){ this.spawned++; const col=pick(["#333","#2a8f46","#c0392b"]); const cs=col==="#c0392b"?1.4:col==="#2a8f46"?1.1:0.85;
+        this.ducks.push({x:120+Math.random()*(W-240), y:H-96, vx:(Math.random()<.5?-1:1)*spd*cs*0.55, vy:-spd*cs*0.5, status:"fly", life:0, col, turn:0.6+Math.random()}); }
+      this.ammo=3; this.waveHit=false; this.state="fly"; },
+    onShoot(x,y){ if(this.state!=="fly"||this.over||this.ammo<=0) return; this.ammo--; sfx.shot();
+      for(const dk of this.ducks){ if(dk.status==="fly" && Math.hypot(dk.x-x,dk.y-y)<40){ dk.status="fall"; dk.vx=0;
+        const base=[100,200,300][ dk.col==="#333"?0: dk.col==="#2a8f46"?1:2 ]; this.score+=base; this.roundHit++; this.waveHit=true; sfx.hit(); break; } } },
+    update(dt){ this.t+=dt; if(this.msgT>0)this.msgT-=dt;
+      if(this.state==="sniff"){ this.timer-=dt; if(this.timer<=0){ this.startWave(); } return; }
+      if(this.state==="fly"){
+        for(const dk of this.ducks){
+          if(dk.status==="fall"){ dk.y+=300*dt; if(dk.y>H+40) dk.status="done"; continue; }
+          if(dk.status!=="fly") continue;
+          dk.life+=dt;
+          const escaping=(this.ammo<=0 || dk.life>5.2);
+          if(escaping){ dk.escaping=true; dk.vy=-300; }
+          dk.x+=dk.vx*dt; dk.y+=dk.vy*dt;
+          if(dk.x<60){dk.x=60; dk.vx=Math.abs(dk.vx);} if(dk.x>W-60){dk.x=W-60; dk.vx=-Math.abs(dk.vx);}
+          if(!escaping){
+            if(dk.y<90){dk.y=90; dk.vy=Math.abs(dk.vy)*0.6;}
+            dk.turn-=dt; if(dk.turn<=0){ dk.turn=0.6+Math.random(); dk.vy=-Math.abs(dk.vy); if(Math.random()<.5)dk.vx=-dk.vx; }
+          } else if(dk.y<-40){ dk.status="done"; dk.escaped=true; }
+        }
+        if(this.ducks.length && this.ducks.every(d=>d.status==="done")){ this.state="show"; this.timer=0.9; }
+        return;
+      }
+      if(this.state==="show"){ this.timer-=dt; if(this.timer<=0) this.advance(); return; }
+    },
+    advance(){
+      if(this.spawned>=this.cfg.perRound){
+        if(this.roundHit>=this.cfg.pass){ this.round++; this.spawned=0; this.roundHit=0; this.msg="Round "+this.round+"!"; this.msgT=1.4; this.state="sniff"; this.timer=0.9; this.dogX=W*0.4; sfx.win(); }
+        else { this.over=true; this.state="over"; sfx.fail(); submitCloud("duckdash",this.score); addPts(Math.round(this.score/4)); }
+      } else { this.startWave(); }
+    },
+    draw(c){ drawSky(c,false);
+      c.fillStyle="#3f7a3a"; c.fillRect(0,H-72,W,72);
+      c.fillStyle="#2f5d2c"; for(let i=0;i<8;i++){ c.beginPath(); c.moveTo(70+i*100,H-72); c.lineTo(100+i*100,H-120); c.lineTo(130+i*100,H-72); c.fill(); }
+      c.fillStyle="#5a3b1a"; c.fillRect(W*0.72,H-160,16,96); c.fillStyle="#2f6d3f"; c.beginPath(); c.arc(W*0.72+8,H-160,46,0,7); c.fill();
+      for(const dk of this.ducks){ if(dk.status==="done") continue;
+        c.save(); c.translate(dk.x,dk.y); if(dk.vx<0)c.scale(-1,1);
+        const flap=Math.sin(this.t*18)*0.5; c.fillStyle=dk.col;
+        c.beginPath(); c.ellipse(0,0,22,15,0,0,7); c.fill();
+        c.beginPath(); c.ellipse(-15,-5,10,9,0,0,7); c.fill();
+        c.fillStyle="#f5a623"; c.beginPath(); c.moveTo(-23,-4); c.lineTo(-31,-2); c.lineTo(-23,1); c.fill();
+        c.fillStyle="#fff"; c.beginPath(); c.arc(-17,-7,2,0,7); c.fill(); c.fillStyle="#111"; c.beginPath(); c.arc(-17,-7,1,0,7); c.fill();
+        c.fillStyle=dk.col; c.save(); c.rotate(flap); c.beginPath(); c.ellipse(6,-2,16,7,0.5,0,7); c.fill(); c.restore();
+        if(dk.status==="fall") emoji(c,"💫",0,-26,20);
+        c.restore();
+      }
+      if(this.state==="sniff") emoji(c,"🐕",this.dogX+Math.sin(this.t*6)*6,H-84,44);
+      if(this.state==="show"){ emoji(c, this.waveHit?"🐕":"😆", W*0.5, H-72, 46); if(this.waveHit) emoji(c,"🦆",W*0.5+36,H-96,26); }
+      hudInfo.textContent="Round "+this.round+"  •  🦆 "+this.roundHit+"/"+this.cfg.perRound+" (need "+this.cfg.pass+")";
+      hudRight.textContent="Score "+this.score;
+      for(let i=0;i<3;i++) emoji(c, i<this.ammo?"🔴":"⚪", 28+i*26, H-24, 18);
+      crosshair(c,pointer.x,pointer.y);
+      if(this.msgT>0) txt(c,this.msg,W/2,H*0.3,34,"#ffd84d");
+      if(this.state==="over"){ c.fillStyle="rgba(0,0,0,.6)"; c.fillRect(0,0,W,H);
+        txt(c,"Hunt over!",W/2,H/2-40,40,"#ffd84d"); txt(c,"You reached round "+this.round+" — score "+this.score,W/2,H/2+6,20,"#fff");
+        txt(c,"Tap ← Range to play again",W/2,H/2+44,16,"#ffd6ef"); }
+    }
+  };
+
+  /* ============================================================
+     OUTBACK HUNTER  (Big Buck Hunter inspired)
+     ============================================================ */
+  const Buck={ key:"outback", title:"Outback Hunter",
+    init(){ this.cfg=P.buck; this.wave=1; this.maxWave=3; this.score=0; this.ammo=6; this.state="ready";
+      this.animals=[]; this.fired=false; this.msg=""; this.msgT=0; this.over=false; this.t=0; this.px=W/2; this.py=H/2; this.spawnWave(); },
+    spawnWave(){ const d=this.cfg; const legal=["🦊","🐰","🦆","🐗"], protectedA=["🦘","🐨","🐧"];
+      const count=d.count + (this.wave-1)*2; this.animals=[]; this.fired=false; this.ammo=6; this.state="ready"; this.msg=""; this.msgT=0;
+      let legalCount=0;
+      for(let i=0;i<count;i++){ const isProt=Math.random()<0.30; if(!isProt)legalCount++;
+        const depth=Math.random(); const y=H*0.32+depth*H*0.42; const scale=0.65+depth*0.85;
+        const dir=Math.random()<.5?1:-1; const x=70+Math.random()*(W-140);
+        this.animals.push({ emoji:isProt?pick(protectedA):pick(legal), prot:isProt, x,y, dir, scale, depth, graze:45+Math.random()*30, alive:true, gone:false, hitT:0, wob:Math.random()*6 }); }
+      if(legalCount===0){ this.animals[0].prot=false; this.animals[0].emoji=pick(legal); }
+      this.legalLeft=this.animals.filter(a=>!a.prot).length; },
+    onMove(x,y){ this.px=x; this.py=y; },
+    onShoot(x,y){ if(this.over) return; this.px=x; this.py=y;
+      if(this.state==="bonus"){ const bo=this.bonus; sfx.shot(); for(const cl of bo.clays){ if(cl.alive && Math.hypot(cl.x-x,cl.y-y)<24){ cl.alive=false; bo.hit++; this.score+=50; addPts(2); sfx.hit(); break; } } return; }
+      if(this.state==="ready"){ this.state="hunt"; return; }
+      if(this.state!=="hunt") return;
+      if(this.ammo<=0){ this.ammo=6; sfx.reload(); this.msg="Reloaded!"; this.msgT=0.6; return; }
+      this.ammo--; sfx.shot(); this.fired=true;
+      let target=null, bestDepth=-1;
+      for(const a of this.animals){ if(!a.alive||a.gone) continue; const rr=32*a.scale; if(Math.hypot(a.x-x,a.y-y)<rr && a.depth>bestDepth){ target=a; bestDepth=a.depth; } }
+      if(target){
+        if(target.prot){ sfx.fail();
+          if(this.cfg.protectedEnds){ this.over=true; this.state="over"; this.msg="You hit a protected animal 🦘"; submitCloud("outback",this.score); addPts(Math.round(this.score/4)); }
+          else { this.score=Math.max(0,this.score-60); this.msg="Careful — that's protected! −60"; this.msgT=1.2; target.alive=false; target.gone=true; }
+        } else { target.alive=false; target.hitT=0.6; const p=Math.round(60+target.depth*140); this.score+=p; addPts(2); this.legalLeft--; this.msg="+"+p; this.msgT=0.7;
+          if(this.legalLeft<=0) this.endWave(); }
+      } },
+    endWave(){ if(this.wave>=this.maxWave){ this.startBonus(); }
+      else { this.wave++; this.msg="Nice! Wave "+this.wave; this.msgT=1.2; setTimeout(()=>{ if(current===Buck) this.spawnWave(); },600); } },
+    startBonus(){ this.bonus={hit:0,target:12,clays:[]}; this.state="bonus"; this.msg="BONUS ROUND — hit the clays! 🎯"; this.msgT=1.5; },
+    update(dt){ this.t+=dt; if(this.msgT>0)this.msgT-=dt;
+      if(this.state==="hunt"){
+        for(const a of this.animals){ if(!a.alive){ if(a.hitT>0)a.hitT-=dt; continue; }
+          if(this.fired){ a.x+=a.dir*a.graze*2.6*this.cfg.fleeSpeed*dt;
+            if((a.dir>0&&a.x>W+60)||(a.dir<0&&a.x<-60)){ a.gone=true; a.alive=false; if(!a.prot){ this.legalLeft--; if(this.legalLeft<=0) this.endWave(); } } }
+          else { a.wob+=dt; a.x+=Math.sin(a.wob*2)*10*dt; } }
+      } else if(this.state==="bonus"){
+        const bo=this.bonus;
+        if(bo.clays.length<3 && Math.random()<dt*2.4 && bo.hit<bo.target){ const dir=Math.random()<.5?1:-1;
+          bo.clays.push({x:dir>0?-20:W+20, y:H*0.4+Math.random()*H*0.2, vx:dir*(240+Math.random()*120), vy:-130-Math.random()*80, alive:true}); }
+        for(const cl of bo.clays){ if(!cl.alive)continue; cl.vy+=180*dt; cl.x+=cl.vx*dt; cl.y+=cl.vy*dt; if(cl.x<-40||cl.x>W+40||cl.y>H+40) cl.alive=false; }
+        bo.clays=bo.clays.filter(c=>c.alive);
+        if(bo.hit>=bo.target){ this.over=true; this.state="over"; this.msg="Trophy hunt complete! 🏆"; sfx.win(); submitCloud("outback",this.score); addPts(Math.round(this.score/4)); }
+      } },
+    draw(c){ drawSky(c,true);
+      c.fillStyle="#8a6a3a"; c.fillRect(0,H*0.55,W,H); c.fillStyle="#6d5a2c"; c.fillRect(0,H*0.72,W,H); c.fillStyle="#4c3f22"; c.fillRect(0,H*0.88,W,H);
+      c.fillStyle="#3c5a2a"; for(let i=0;i<6;i++){ c.beginPath(); c.arc(60+i*140,H*0.6,26,0,7); c.fill(); }
+      if(this.state==="bonus"){ const bo=this.bonus;
+        for(const cl of bo.clays){ if(cl.alive){ c.fillStyle="#e6a24b"; c.beginPath(); c.ellipse(cl.x,cl.y,14,6,0,0,7); c.fill(); c.strokeStyle="#7a4a20"; c.lineWidth=2; c.stroke(); } }
+        hudInfo.textContent="BONUS 🎯 "+bo.hit+"/"+bo.target; hudRight.textContent="Score "+this.score;
+      } else {
+        for(const a of this.animals){ if(!a.alive && !(a.hitT>0)) continue; const s=22*a.scale*2;
+          if(a.alive){ emoji(c,a.emoji,a.x,a.y,s); if(a.prot) txt(c,"◈",a.x,a.y-s*0.55,14,"#7fffb0"); }
+          else if(a.hitT>0) emoji(c,"💥",a.x,a.y,s); }
+        hudInfo.textContent="Wave "+this.wave+"/"+this.maxWave+"  •  🎯 "+Math.max(0,this.legalLeft)+" left";
+        hudRight.textContent="Score "+this.score;
+        for(let i=0;i<6;i++) emoji(c, i<this.ammo?"🟩":"⬜", 26+i*24, H-22, 16);
+        if(this.state==="ready"){ c.fillStyle="rgba(0,0,0,.45)"; c.fillRect(0,0,W,H); txt(c,"Wave "+this.wave,W/2,H/2-24,40,"#ffd84d"); txt(c,"Tap to start — spare the 🦘 🐨!",W/2,H/2+20,18,"#fff"); }
+      }
+      crosshair(c,this.px,this.py);
+      if(this.msgT>0) txt(c,this.msg,W/2,H*0.24,24,"#ffd84d");
+      if(this.state==="over"){ c.fillStyle="rgba(0,0,0,.6)"; c.fillRect(0,0,W,H); txt(c,"Hunt over!",W/2,H/2-30,40,"#ffd84d"); txt(c,"Score "+this.score,W/2,H/2+8,24,"#fff"); txt(c,"Tap ← Range to hunt again",W/2,H/2+42,16,"#ffd6ef"); }
+    }
+  };
+
+  const GAMES={ duck:Duck, buck:Buck };
+  document.querySelectorAll(".card").forEach(cd=>cd.addEventListener("click",()=>{ ac(); startGame(GAMES[cd.dataset.game]); }));
+  document.getElementById("homeLink").href="play.html?player="+pk;
+  window.__huntTest={ Duck, Buck, startGame, toMenu, P };
+})();
+</script>
+</body>
+</html>
