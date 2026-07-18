@@ -24,9 +24,11 @@
   .tile .nm{font-size:clamp(20px,4.4vw,26px); font-weight:bold; margin:6px 0 3px;}
   .tile .ds{opacity:.92; font-size:clamp(12px,2.6vw,14px);}
   .t-arcade{background:linear-gradient(150deg,var(--b),var(--a));}
+  .t-hoops{background:linear-gradient(150deg,#ff8a3d,#ff3b3b);}
   .t-brain{background:linear-gradient(150deg,var(--a),#3aa0ff);}
   .t-hunt{background:linear-gradient(150deg,#c98a3c,#7a4a22);}
   .t-classic{background:linear-gradient(150deg,var(--c),var(--a));}
+  .t-more{background:linear-gradient(150deg,var(--y),#ff7b1c);}
   .foot{opacity:.6; font-size:12px; margin-top:26px; text-align:center;}
   .champ{margin-top:22px; background:rgba(255,255,255,.07); border-radius:16px; padding:12px 16px; width:100%; max-width:720px; text-align:center;}
   .champ a{color:var(--y); font-weight:bold;}
@@ -41,9 +43,11 @@
   <div class="sub" id="sub">Pick a game world, then have fun!</div>
   <div class="grid">
     <a class="tile t-arcade" id="arcade"><div class="em">🕹️</div><div class="nm">Arcade</div><div class="ds" id="dArcade">Action games</div></a>
+    <a class="tile t-hoops" id="hoops"><div class="em">🏀</div><div class="nm">Hoops</div><div class="ds">Pop-a-Shot · 3-Point · Around World · Duel — design your baller!</div></a>
     <a class="tile t-brain" id="brain"><div class="em">🧠</div><div class="nm">Brain Games</div><div class="ds">Eye Spy · Tic Tac Toe · Chess · Maths · Spelling</div></a>
-    <a class="tile t-hunt" id="hunt"><div class="em">🎯</div><div class="nm">Hunting Range</div><div class="ds">Duck Dash · Outback Hunter</div></a>
+    <a class="tile t-hunt" id="hunt"><div class="em">🎯</div><div class="nm">Hunting Range</div><div class="ds">Duck Dash · Outback Hunter · Clay Shooting</div></a>
     <a class="tile t-classic" id="classic"><div class="em">🏆</div><div class="nm">Classic Games</div><div class="ds">Snake · Breakout · Memory · Connect Four</div></a>
+    <a class="tile t-more" id="more"><div class="em">⭐</div><div class="nm">More Games</div><div class="ds">Flappy · Whack-a-Mole · 2048</div></a>
   </div>
   <div class="champ">🏆 See everyone's best scores on the <a href="index.html">All-Time Leaderboard</a></div>
   <div class="foot">Made just for you 💜🟠 — works on any device.</div>
@@ -56,9 +60,11 @@
   document.getElementById("sub").textContent="Hi "+c.name+"! Pick a world to play in.";
   document.getElementById("dArcade").textContent=c.dArcade;
   document.getElementById("arcade").href=c.arcade;
+  document.getElementById("hoops").href="hoops.html?player="+pk;
   document.getElementById("brain").href="brain.html?player="+pk;
   document.getElementById("hunt").href="hunt.html?player="+pk;
   document.getElementById("classic").href="classics.html?player="+pk;
+  document.getElementById("more").href="popular.html?player="+pk;
 </script>
 </body>
 </html>
