@@ -63,6 +63,8 @@
     </div>
   </div>
   <div class="toast" id="toast"></div>
+<script>window.ARCADE_TRACK="fun";</script>
+<script src="arcade-extras.js"></script>
 <script>
 "use strict";
 (function(){
@@ -82,7 +84,7 @@
   const PK="classics_pts_"+pk; const pts=()=>parseInt(localStorage.getItem(PK)||"0",10)||0;
   function addPts(n){ try{localStorage.setItem(PK,String(pts()+Math.max(0,n)));}catch(e){} document.getElementById("pts").textContent=pts(); }
   document.getElementById("pts").textContent=pts();
-  function submitCloud(game,score){ if(!(score>0))return; try{ fetch("/.netlify/functions/scores",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:pk,game:game,name:P.name.toUpperCase(),score:score})}).catch(function(){}); }catch(e){} }
+  function submitCloud(game,score){ if(!(score>0))return; if(window.ARCADE&&ARCADE.saveScore){ ARCADE.saveScore(pk,game,P.name,score); return; } try{ fetch("/.netlify/functions/scores",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:pk,game:game,name:P.name.toUpperCase(),score:score})}).catch(function(){}); }catch(e){} }
 
   let AC=null; function ac(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}} if(AC&&AC.state==="suspended")AC.resume(); return AC; }
   function tone(f,d,t,v){ const a=ac(); if(!a)return; const o=a.createOscillator(),g=a.createGain(); o.type=t||"sine"; o.frequency.value=f; g.gain.value=0.0001; o.connect(g); g.connect(a.destination); const n=a.currentTime; g.gain.exponentialRampToValueAtTime(v||0.13,n+0.01); g.gain.exponentialRampToValueAtTime(0.0001,n+(d||0.15)); o.start(n); o.stop(n+(d||0.15)+0.02); }

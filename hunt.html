@@ -61,6 +61,8 @@
     </div>
   </div>
 
+<script>window.ARCADE_TRACK="hunt";</script>
+<script src="arcade-extras.js"></script>
 <script>
 "use strict";
 (function(){
@@ -82,7 +84,13 @@
   const pts=()=>parseInt(localStorage.getItem(PK)||"0",10)||0;
   function addPts(n){ try{localStorage.setItem(PK,String(pts()+Math.max(0,n)));}catch(e){} document.getElementById("pts").textContent=pts(); }
   document.getElementById("pts").textContent=pts();
-  function submitCloud(game,score){ if(!(score>0))return; try{ fetch("/.netlify/functions/scores",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:pk,game:game,name:P.name.toUpperCase(),score:score})}).catch(function(){}); }catch(e){} }
+  function submitCloud(game,score){ if(!(score>0))return; if(window.ARCADE&&ARCADE.saveScore){ ARCADE.saveScore(pk,game,P.name,score); return; } try{ fetch("/.netlify/functions/scores",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:pk,game:game,name:P.name.toUpperCase(),score:score})}).catch(function(){}); }catch(e){} }
+
+  /* records + hype */
+  function getBest(g){ return parseInt(localStorage.getItem("hunt_best_"+g)||"0",10)||0; }
+  function saveBest(g,s){ if(s>getBest(g)){ try{localStorage.setItem("hunt_best_"+g,String(s));}catch(e){} } }
+  function hypeRecord(g,score,st){ if(!st.recHit && getBest(g)>0 && score>getBest(g)){ st.recHit=true; if(window.ARCADE&&ARCADE.hype)ARCADE.hype(); } }
+  function hype(){ if(window.ARCADE&&ARCADE.hype)ARCADE.hype(); }
 
   /* audio */
   let AC=null; function ac(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}} if(AC&&AC.state==="suspended")AC.resume(); return AC; }
@@ -122,17 +130,17 @@
      ============================================================ */
   const Duck={ key:"duckdash", title:"Duck Dash",
     init(){ this.cfg=P.duck; this.round=1; this.score=0; this.spawned=0; this.roundHit=0; this.ammo=3;
-      this.ducks=[]; this.state="sniff"; this.timer=1.0; this.dogX=W*0.4; this.waveHit=false; this.msg="Round 1"; this.msgT=1.2; this.over=false; this.t=0; },
+      this.ducks=[]; this.state="sniff"; this.timer=1.0; this.dogX=W*0.4; this.waveHit=false; this.msg="Round 1"; this.msgT=1.2; this.over=false; this.t=0; this.recHit=false; this.flash=0; },
     startWave(){ const d=this.cfg; const remaining=d.perRound-this.spawned;
       const n=(this.round>=d.doubleFrom && remaining>=2)?2:1;
       this.ducks=[]; const spd=(85+this.round*20)*d.speed;
       for(let i=0;i<n;i++){ this.spawned++; const gold=Math.random()<0.09; let col=pick(["#333","#2a8f46","#c0392b"]); let cs=col==="#c0392b"?1.4:col==="#2a8f46"?1.1:0.85; if(gold){ col="#ffd84d"; cs=1.15; }
         this.ducks.push({x:120+Math.random()*(W-240), y:H-96, vx:(Math.random()<.5?-1:1)*spd*cs*0.55, vy:-spd*cs*0.5, status:"fly", life:0, col, gold, turn:0.6+Math.random()}); }
       this.ammo=3; this.waveHit=false; this.state="fly"; },
-    onShoot(x,y){ if(this.state!=="fly"||this.over||this.ammo<=0) return; this.ammo--; sfx.shot();
+    onShoot(x,y){ if(this.state!=="fly"||this.over||this.ammo<=0) return; this.ammo--; sfx.shot(); this.flash=0.05;
       for(const dk of this.ducks){ if(dk.status==="fly" && Math.hypot(dk.x-x,dk.y-y)<40){ dk.status="fall"; dk.vx=0;
-        const base=dk.gold?500:[100,200,300][ dk.col==="#333"?0: dk.col==="#2a8f46"?1:2 ]; this.score+=base; this.roundHit++; this.waveHit=true; sfx.hit(); break; } } },
-    update(dt){ this.t+=dt; if(this.msgT>0)this.msgT-=dt;
+        const base=dk.gold?500:[100,200,300][ dk.col==="#333"?0: dk.col==="#2a8f46"?1:2 ]; this.score+=base; this.roundHit++; this.waveHit=true; sfx.hit(); hypeRecord("duckdash",this.score,this); break; } } },
+    update(dt){ this.t+=dt; if(this.msgT>0)this.msgT-=dt; if(this.flash>0)this.flash-=dt;
       if(this.state==="sniff"){ this.timer-=dt; if(this.timer<=0){ this.startWave(); } return; }
       if(this.state==="fly"){
         for(const dk of this.ducks){
@@ -155,8 +163,8 @@
     },
     advance(){
       if(this.spawned>=this.cfg.perRound){
-        if(this.roundHit>=this.cfg.pass){ this.round++; this.spawned=0; this.roundHit=0; this.msg="Round "+this.round+"!"; this.msgT=1.4; this.state="sniff"; this.timer=0.9; this.dogX=W*0.4; sfx.win(); }
-        else { this.over=true; this.state="over"; sfx.fail(); submitCloud("duckdash",this.score); addPts(Math.round(this.score/4)); }
+        if(this.roundHit>=this.cfg.pass){ this.round++; this.spawned=0; this.roundHit=0; this.msg="Round "+this.round+"!"; this.msgT=1.4; this.state="sniff"; this.timer=0.9; this.dogX=W*0.4; sfx.win(); hype(); }
+        else { this.over=true; this.state="over"; sfx.fail(); saveBest("duckdash",this.score); submitCloud("duckdash",this.score); addPts(Math.round(this.score/4)); }
       } else { this.startWave(); }
     },
     draw(c){ drawSky(c,false);
@@ -180,6 +188,7 @@
       hudInfo.textContent="Round "+this.round+"  •  🦆 "+this.roundHit+"/"+this.cfg.perRound+" (need "+this.cfg.pass+")";
       hudRight.textContent="Score "+this.score;
       for(let i=0;i<3;i++) emoji(c, i<this.ammo?"🔴":"⚪", 28+i*26, H-24, 18);
+      if(this.flash>0){ c.globalAlpha=Math.min(1,this.flash*14); c.fillStyle="#fff"; c.beginPath(); c.arc(pointer.x,pointer.y,22,0,7); c.fill(); c.globalAlpha=1; }
       crosshair(c,pointer.x,pointer.y);
       if(this.msgT>0) txt(c,this.msg,W/2,H*0.3,34,"#ffd84d");
       if(this.state==="over"){ c.fillStyle="rgba(0,0,0,.6)"; c.fillRect(0,0,W,H);
@@ -193,7 +202,7 @@
      ============================================================ */
   const Buck={ key:"outback", title:"Outback Hunter",
     init(){ this.cfg=P.buck; this.wave=1; this.maxWave=3; this.score=0; this.ammo=6; this.state="ready";
-      this.animals=[]; this.fired=false; this.msg=""; this.msgT=0; this.over=false; this.t=0; this.px=W/2; this.py=H/2; this.spawnWave(); },
+      this.animals=[]; this.fired=false; this.msg=""; this.msgT=0; this.over=false; this.t=0; this.px=W/2; this.py=H/2; this.recHit=false; this.spawnWave(); },
     spawnWave(){ const d=this.cfg; const legal=["🦊","🐰","🦆","🐗"], protectedA=["🦘","🐨","🐧"];
       const count=d.count + (this.wave-1)*2; this.animals=[]; this.fired=false; this.ammo=6; this.state="ready"; this.msg=""; this.msgT=0;
       let legalCount=0;
@@ -214,7 +223,7 @@
       for(const a of this.animals){ if(!a.alive||a.gone) continue; const rr=32*a.scale; if(Math.hypot(a.x-x,a.y-y)<rr && a.depth>bestDepth){ target=a; bestDepth=a.depth; } }
       if(target){
         if(target.prot){ sfx.fail();
-          if(this.cfg.protectedEnds){ this.over=true; this.state="over"; this.msg="You hit a protected animal 🦘"; submitCloud("outback",this.score); addPts(Math.round(this.score/4)); }
+          if(this.cfg.protectedEnds){ this.over=true; this.state="over"; this.msg="You hit a protected animal 🦘"; saveBest("outback",this.score); submitCloud("outback",this.score); addPts(Math.round(this.score/4)); }
           else { this.score=Math.max(0,this.score-60); this.msg="Careful — that's protected! −60"; this.msgT=1.2; target.alive=false; target.gone=true; }
         } else { target.alive=false; target.hitT=0.6; const p=Math.round(60+target.depth*140); this.score+=p; addPts(2); this.legalLeft--; this.msg="+"+p; this.msgT=0.7;
           if(this.legalLeft<=0) this.endWave(); }
@@ -234,7 +243,7 @@
           bo.clays.push({x:dir>0?-20:W+20, y:H*0.4+Math.random()*H*0.2, vx:dir*(240+Math.random()*120), vy:-130-Math.random()*80, alive:true}); }
         for(const cl of bo.clays){ if(!cl.alive)continue; cl.vy+=180*dt; cl.x+=cl.vx*dt; cl.y+=cl.vy*dt; if(cl.x<-40||cl.x>W+40||cl.y>H+40) cl.alive=false; }
         bo.clays=bo.clays.filter(c=>c.alive);
-        if(bo.hit>=bo.target){ this.over=true; this.state="over"; this.msg="Trophy hunt complete! 🏆"; sfx.win(); submitCloud("outback",this.score); addPts(Math.round(this.score/4)); }
+        if(bo.hit>=bo.target){ this.over=true; this.state="over"; this.msg="Trophy hunt complete! 🏆"; sfx.win(); hype(); saveBest("outback",this.score); submitCloud("outback",this.score); addPts(Math.round(this.score/4)); }
       } },
     draw(c){ drawSky(c,true);
       c.fillStyle="#8a6a3a"; c.fillRect(0,H*0.55,W,H); c.fillStyle="#6d5a2c"; c.fillRect(0,H*0.72,W,H); c.fillStyle="#4c3f22"; c.fillRect(0,H*0.88,W,H);
@@ -261,18 +270,19 @@
      CLAY SHOOTING  (skeet) — Pull! combo the clays
      ============================================================ */
   const Clay={ key:"claybreak", title:"Clay Shooting",
-    init(){ this.clays=[]; this.shards=[]; this.spawnT=0.6; this.t=0; this.score=0; this.combo=0; this.best=0; this.misses=0; this.maxMiss=P.buck.protectedEnds?5:7; this.over=false; this.flash=0; this.px=W/2; this.py=H/2; },
+    init(){ this.clays=[]; this.shards=[]; this.spawnT=0.6; this.t=0; this.score=0; this.combo=0; this.best=0; this.misses=0; this.maxMiss=P.buck.protectedEnds?5:7; this.over=false; this.flash=0; this.px=W/2; this.py=H/2; this.recHit=false; },
     spawn(){ const dir=Math.random()<.5?1:-1; const x=dir>0?70:W-70; const sp=1+this.t*0.02;
       this.clays.push({x,y:H-70,vx:dir*(170+Math.random()*150)*sp,vy:-(250+Math.random()*130)*sp,alive:true,spin:0,gold:Math.random()<0.08}); },
     onShoot(x,y){ if(this.over)return; this.px=x; this.py=y; sfx.shot(); this.flash=0.06;
       let hit=null,bd=1e9; for(const cl of this.clays){ if(cl.alive){ const d=Math.hypot(cl.x-x,cl.y-y); if(d<26&&d<bd){bd=d;hit=cl;} } }
       if(hit){ hit.alive=false; this.combo++; if(this.combo>this.best)this.best=this.combo; const base=hit.gold?60:12; const p=base*Math.min(6,this.combo); this.score+=p; addPts(1); sfx.hit();
+        if(this.combo>0 && this.combo%5===0) hype(); hypeRecord("claybreak",this.score,this);
         for(let i=0;i<10;i++)this.shards.push({x:hit.x,y:hit.y,vx:(Math.random()-.5)*260,vy:(Math.random()-.5)*260-40,life:0.5,gold:hit.gold}); }
       else { this.combo=0; } },
     update(dt){ if(this.over)return; this.t+=dt; if(this.flash>0)this.flash-=dt;
       this.spawnT-=dt; if(this.spawnT<=0){ this.spawnT=Math.max(0.5,1.1-this.t*0.012); this.spawn(); if(this.t>12&&Math.random()<0.35)this.spawn(); }
       for(const cl of this.clays){ if(!cl.alive)continue; cl.vy+=250*dt; cl.x+=cl.vx*dt; cl.y+=cl.vy*dt; cl.spin+=dt*7;
-        if(cl.y>H-28){ cl.alive=false; this.combo=0; this.misses++; if(this.misses>=this.maxMiss){ this.over=true; sfx.fail(); submitCloud("claybreak",this.score); addPts(Math.round(this.score/4)); } } }
+        if(cl.y>H-28){ cl.alive=false; this.combo=0; this.misses++; if(this.misses>=this.maxMiss){ this.over=true; sfx.fail(); saveBest("claybreak",this.score); submitCloud("claybreak",this.score); addPts(Math.round(this.score/4)); } } }
       this.clays=this.clays.filter(cl=>cl.alive && cl.x>-40 && cl.x<W+40);
       for(const s of this.shards){ s.vy+=300*dt; s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt; } this.shards=this.shards.filter(s=>s.life>0); },
     draw(c){ drawSky(c,false);

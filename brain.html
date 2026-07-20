@@ -137,6 +137,8 @@
   </div>
   <div class="toast" id="toast"></div>
 
+<script>window.ARCADE_TRACK="fun";</script>
+<script src="arcade-extras.js"></script>
 <script>
 "use strict";
 (function(){
@@ -212,6 +214,7 @@
   document.getElementById("pts").textContent = pts();
   function submitCloud(game, score){
     if(!(score>0)) return;
+    if(window.ARCADE&&ARCADE.saveScore){ ARCADE.saveScore(playerKey,game,P.name,score); return; }
     try{ fetch("/.netlify/functions/scores",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({profile:playerKey, game:game, name:P.name.toUpperCase(), score:score})}).catch(function(){}); }catch(e){}
   }
