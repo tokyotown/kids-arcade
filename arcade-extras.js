@@ -72,8 +72,14 @@ window.ARCADE = (function(){
     }
   };
 
-  /* ---------- hype: crowd roar + air horn ---------- */
-  function hype(){ const a=ac(); if(!a||music.muted) { /* still play SFX even if music muted? play it */ } const g=a.createGain(); g.gain.value=0.0001; g.connect(a.destination);
+  /* ---------- hype: "OH YEAH" clip, with synth fallback ---------- */
+  let ohyeah=null;
+  function hype(){
+    try{ if(!ohyeah){ ohyeah=new Audio("ohyeah.mp3"); ohyeah.volume=0.9; } ohyeah.currentTime=0;
+      const p=ohyeah.play(); if(p&&p.catch) p.catch(function(){ synthHype(); }); return; }catch(e){}
+    synthHype();
+  }
+  function synthHype(){ const a=ac(); if(!a) return; const g=a.createGain(); g.gain.value=0.0001; g.connect(a.destination);
     const t=a.currentTime;
     // air horn: three stacked saw tones with vibrato
     [220,277,330].forEach((f,i)=>{ const o=a.createOscillator(); o.type="sawtooth"; o.frequency.value=f;
@@ -112,6 +118,7 @@ window.ARCADE = (function(){
     let qualifies=true;
     try{ const r=await fetch("/.netlify/functions/scores",{cache:"no-store"}); if(r.ok){ const data=await r.json(); const list=data[profile+":"+game]||[]; qualifies = list.length<10 || score>(list[list.length-1]?list[list.length-1].score:0); } }catch(e){ qualifies=true; }
     if(!qualifies) return;
+    hype(); // "OH YEAH" — a new top score!
     const name=await promptName(lastName(defName), score);
     if(name===null) return;
     try{ fetch("/.netlify/functions/scores",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:profile, game:game, name:name, score:score})}).catch(function(){}); }catch(e){}

@@ -38,6 +38,13 @@
   .board .note{text-align:center; opacity:.7; font-size:13px; margin-bottom:16px;}
   .cols{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
   @media(max-width:560px){ .cols{grid-template-columns:1fr;} }
+  .board-games{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  @media(max-width:640px){ .board-games{grid-template-columns:1fr 1fr;} }
+  @media(max-width:420px){ .board-games{grid-template-columns:1fr;} }
+  .gcard{background:rgba(0,0,0,.18); border-radius:12px; padding:10px 12px;}
+  .gcard .glabel{font-weight:bold; font-size:14px; opacity:.95; margin-bottom:4px; padding-bottom:4px; border-bottom:2px solid rgba(255,255,255,.12);}
+  .gcard .row{display:flex; justify-content:space-between; font-size:13px; opacity:.92; padding:1px 0;}
+  .gcard .row b{color:#ffd84d;}
   .col h3{font-size:17px; margin-bottom:8px; padding-bottom:6px; border-bottom:2px solid rgba(255,255,255,.15);}
   .col.archie h3{color:#ff9d4d;} .col.ivy h3{color:#ff8fc7;}
   .g{margin-bottom:12px;}
@@ -72,36 +79,34 @@
   <div class="board">
     <h2>🏆 All-Time Top Scores</h2>
     <div class="note" id="boardNote">Loading the leaderboard…</div>
-    <div class="cols">
-      <div class="col archie"><h3>🟠 Archie</h3><div id="archieBoard"></div></div>
-      <div class="col ivy"><h3>💜 Ivy</h3><div id="ivyBoard"></div></div>
-    </div>
+    <div id="board" class="board-games"></div>
     <button class="refresh" id="refreshBtn">↻ Refresh scores</button>
   </div>
 
   <div class="foot">Runs on Netlify. Scores save to the cloud so they show up on any device.</div>
 
 <script>
-  const EXTRA = [
-    ["Hoops", [["hoops_arcade","⏱️ Pop-a-Shot"],["hoops_3pt","🎯 3-Point"],["hoops_atw","🌍 Around World"],["hoops_duel","🆚 Duel"]]],
-    ["Brain", [["math","🧮 Maths"],["spelling","🚀 Spelling"],["eyespy","👀 Eye Spy"],["chess","♟️ Chess"],["tictactoe","⭕ Tic Tac Toe"]]],
-    ["Hunting", [["duckdash","🦆 Duck Dash"],["outback","🦊 Outback Hunter"],["claybreak","🎯 Clay Shooting"]]],
-    ["Classics", [["snake","🐍 Snake"],["breakout","🧱 Breakout"],["memory","🧠 Memory"],["connect4","🔴 Connect Four"]]],
-    ["More", [["flappy","🐤 Flappy"],["whack","🔨 Whack-a-Mole"],["g2048","🔢 2048"]]]
-  ];
-  const GAMES = {
-    archie: [["Arcade", [["hoops","🏀 Buzzer Beater"],["trail","🏍️ Trail Blazer"],["footy","🏉 Big Kick"],["fetch","🐾 Fetch Frenzy"]]]].concat(EXTRA),
-    ivy:    [["Arcade", [["dance","💃 Dance Studio"],["gym","🤸 Gym Star"],["ball","🏀 Hoop Star"],["fetch","🐾 Fetch Frenzy"]]]].concat(EXTRA)
-  };
-  function renderProfile(profile, data){
-    const box = document.getElementById(profile==='archie'?'archieBoard':'ivyBoard');
-    box.innerHTML = GAMES[profile].map(([cat,list])=>{
-      const rows = list.map(([g,label])=>{
-        const top = (data[profile+':'+g]||[])[0];
-        return `<div class="row"><span>${label}</span><b>${top?top.score:'—'}</b></div>`;
-      }).join('');
-      return `<div class="g"><div class="glabel">${cat}</div>${rows}</div>`;
+  const LABELS = { dance:"💃 Dance Studio", gym:"🤸 Gym Star", ball:"🏀 Hoop Star", fetch:"🐾 Fetch Frenzy",
+    hoops:"🏀 Buzzer Beater", trail:"🏍️ Trail Blazer", footy:"🏉 Big Kick",
+    hoops_arcade:"⏱️ Pop-a-Shot", hoops_3pt:"🎯 3-Point Contest", hoops_atw:"🌍 Around the World", hoops_duel:"🆚 Half-Court Duel",
+    eyespy:"👀 Eye Spy", math:"🧮 Maths", spelling:"🚀 Spelling", chess:"♟️ Chess", tictactoe:"⭕ Tic Tac Toe",
+    duckdash:"🦆 Duck Dash", outback:"🦊 Outback Hunter", claybreak:"🎯 Clay Shooting",
+    snake:"🐍 Snake", breakout:"🧱 Breakout", memory:"🧠 Memory", connect4:"🔴 Connect Four", pigs:"🐷 Pass the Billy Boy",
+    flappy:"🐤 Flappy", whack:"🔨 Whack-a-Mole", g2048:"🔢 2048" };
+  const ORDER = Object.keys(LABELS);
+  function esc(s){ return String(s==null?"":s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+  function render(data){
+    const box = document.getElementById('board');
+    const byGame = {};
+    Object.keys(data).forEach(ck=>{ const i=ck.indexOf(':'); const gk=i>=0?ck.slice(i+1):ck; (byGame[gk]=byGame[gk]||[]).push.apply(byGame[gk], data[ck]||[]); });
+    const keys = Object.keys(byGame).sort((a,b)=>{ const ia=ORDER.indexOf(a), ib=ORDER.indexOf(b); return (ia<0?999:ia)-(ib<0?999:ib); });
+    if(!keys.length){ box.innerHTML=''; return false; }
+    box.innerHTML = keys.map(gk=>{
+      const list = byGame[gk].slice().sort((x,y)=>y.score-x.score).slice(0,5);
+      const rows = list.map((e,i)=>`<div class="row"><span>${i+1}. ${esc(e.name)}</span><b>${e.score}</b></div>`).join('');
+      return `<div class="gcard"><div class="glabel">${LABELS[gk]||gk}</div>${rows}</div>`;
     }).join('');
+    return true;
   }
   async function load(){
     const note = document.getElementById('boardNote');
@@ -110,11 +115,10 @@
       const res = await fetch('/.netlify/functions/scores', {cache:'no-store'});
       if(!res.ok) throw new Error('offline');
       const data = await res.json();
-      renderProfile('archie', data); renderProfile('ivy', data);
-      const any = Object.keys(data).length>0;
-      note.textContent = any ? 'Best scores ever recorded — beat them!' : 'No scores yet — be the first to play!';
+      const any = render(data);
+      note.textContent = any ? "Everyone's best scores — any player who reaches the top 5 shows up here! 🏆" : 'No scores yet — be the first to play!';
     }catch(e){
-      renderProfile('archie', {}); renderProfile('ivy', {});
+      document.getElementById('board').innerHTML='';
       note.textContent = 'Leaderboard shows up once this is hosted online (Netlify). Playing locally still saves scores on your device.';
     }
   }

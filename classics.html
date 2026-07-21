@@ -241,12 +241,108 @@
       return ()=>{};
     } };
 
-  const GAMES=[Snake,Breakout,Memory,Connect];
+  /* ================= PASS THE BILLY BOY (Pass the Pigs) ================= */
+  const Pigs=(function(){
+    // documented single-pig landing probabilities (Kern 2006 empirical study)
+    const POSES=[["side-nodot",0.349],["side-dot",0.302],["razorback",0.224],["trotter",0.088],["snouter",0.030],["jowler",0.007]];
+    const VAL={razorback:5,trotter:5,snouter:10,jowler:15};
+    const DBL={razorback:20,trotter:20,snouter:40,jowler:60};
+    const NICE={"side-nodot":"Sider","side-dot":"Sider",razorback:"Razorback",trotter:"Trotter",snouter:"Snouter",jowler:"Leaning Jowler"};
+    const isSide=p=>p==="side-nodot"||p==="side-dot";
+    function rollPose(){ let r=Math.random(); for(const [p,pr] of POSES){ if(r<pr) return p; r-=pr; } return "side-nodot"; }
+    function combo(a,b){
+      if(isSide(a)&&isSide(b)){ if(a===b) return {pts:1,name:"Sider",bad:false}; return {pts:0,name:"Pig Out! 🐽",pigout:true}; }
+      if(isSide(a)||isSide(b)){ const s=isSide(a)?b:a; return {pts:VAL[s],name:NICE[s]}; }
+      if(a===b) return {pts:DBL[a],name:"Double "+NICE[a]+"! 🌟"};
+      return {pts:VAL[a]+VAL[b],name:NICE[a]+" + "+NICE[b]};
+    }
+    function rrp(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+    function drawDog(c,x,y,s,pose){
+      const rot={trotter:0,"side-nodot":1.45,"side-dot":1.45,razorback:Math.PI,snouter:-0.5,jowler:-0.95}[pose]||0;
+      c.save(); c.translate(x,y); c.rotate(rot); c.scale(s,s);
+      c.strokeStyle="#5a3d22"; c.lineWidth=5; c.lineCap="round";
+      c.beginPath(); c.moveTo(-16,10);c.lineTo(-16,26); c.moveTo(-6,10);c.lineTo(-6,26); c.moveTo(14,10);c.lineTo(14,26); c.moveTo(24,10);c.lineTo(24,26); c.stroke();
+      c.strokeStyle="#6b4a2b"; c.lineWidth=5; c.beginPath(); c.moveTo(-24,-4); c.lineTo(-34,-14); c.stroke();
+      c.fillStyle="#6b4a2b"; rrp(c,-26,-12,52,24,12); c.fill();
+      c.fillStyle="#4a3018"; [[-10,-2],[4,3],[16,-4],[-18,4],[8,-6]].forEach(p=>{c.beginPath();c.arc(p[0],p[1],2,0,7);c.fill();});
+      c.fillStyle="#6b4a2b"; rrp(c,20,-18,18,18,8); c.fill(); rrp(c,34,-12,13,9,4); c.fill();
+      c.fillStyle="#4a3018"; rrp(c,19,-18,9,15,5); c.fill();
+      c.fillStyle="#111"; c.beginPath(); c.arc(31,-10,2,0,7); c.fill(); c.beginPath(); c.arc(46,-8,2.4,0,7); c.fill();
+      c.restore();
+      if(pose==="side-dot"){ c.fillStyle="#fff"; c.beginPath(); c.arc(x,y-6,4,0,7); c.fill(); c.strokeStyle="#333"; c.lineWidth=1; c.stroke(); }
+    }
+    return { key:"pigs", title:"Pass the Billy Boy", emoji:"🐕", desc:"Roll the pups — first to 100!",
+      mount(root,cfg,api){
+        const TARGET=100; const OINK=0.008; // rare "bumped noses" = lose all
+        let total=[0,0], turn=0, turnPts=0, mode=null, over=false, dice=["trotter","trotter"], last="", lastBad=false, busy=false;
+        const panel=document.createElement("div"); panel.className="panel"; root.appendChild(panel);
+        const cvv=document.createElement("canvas"); cvv.width=420; cvv.height=200; cvv.style.cssText="max-width:100%;background:#254a2a;border-radius:12px;margin:8px auto;display:block;";
+        const cctx=cvv.getContext("2d");
+        function names(){ return mode==="ai"?["You","Billy the Computer"]:["Player 1","Player 2"]; }
+        function menu(){ panel.innerHTML=""; const t=document.createElement("div"); t.className="big"; t.textContent="🐕 Pass the Billy Boy"; panel.appendChild(t);
+          const s=document.createElement("div"); s.className="sub"; s.innerHTML="Roll two Billy Boys like dice! Score by how they land, then <b>Bank</b> your points before a <b>Pig Out</b> wipes your turn. First to 100 wins."; panel.appendChild(s);
+          const row=document.createElement("div"); row.className="btnrow"; const b1=document.createElement("button"); b1.className="btn"; b1.textContent="🤖 vs Computer"; b1.onclick=()=>start("ai");
+          const b2=document.createElement("button"); b2.className="btn ghost"; b2.textContent="👥 2 Players"; b2.onclick=()=>start("2p"); row.appendChild(b1); row.appendChild(b2); panel.appendChild(row); }
+        function start(m){ mode=m; total=[0,0]; turn=0; turnPts=0; over=false; last="Roll to start!"; lastBad=false; dice=["trotter","razorback"]; busy=false; render(); }
+        function drawScene(){ cctx.fillStyle="#254a2a"; cctx.fillRect(0,0,420,200);
+          cctx.fillStyle="rgba(255,255,255,.06)"; for(let i=0;i<420;i+=30)cctx.fillRect(i,0,15,200);
+          drawDog(cctx,140,110,1.15,dice[0]); drawDog(cctx,290,110,1.15,dice[1]);
+          cctx.fillStyle=lastBad?"#ff6b6b":"#ffd84d"; cctx.font="bold 20px Trebuchet MS"; cctx.textAlign="center"; cctx.fillText(last,210,30);
+        }
+        function render(){ panel.innerHTML=""; const nm=names();
+          const sb=document.createElement("div"); sb.style.cssText="display:flex;justify-content:space-around;margin:4px 0 2px;font-weight:bold;";
+          sb.innerHTML="<div style='color:"+(turn===0?"var(--y)":"#fff")+"'>"+nm[0]+": "+total[0]+"</div><div style='color:"+(turn===1?"var(--y)":"#fff")+"'>"+nm[1]+": "+total[1]+"</div>"; panel.appendChild(sb);
+          panel.appendChild(cvv); drawScene();
+          const info=document.createElement("div"); info.className="sub"; info.innerHTML= over? "" : ("<b>"+nm[turn]+"</b>'s turn — this turn: <b style='color:var(--y)'>"+turnPts+"</b>"); panel.appendChild(info);
+          if(over){ const w=total[0]>=TARGET?0:1; const wt=document.createElement("div"); wt.className="clue"; wt.textContent=nm[w]+" wins! 🏆"; panel.appendChild(wt);
+            const rr=document.createElement("div"); rr.className="btnrow"; const ag=document.createElement("button"); ag.className="btn"; ag.textContent="Play again"; ag.onclick=()=>start(mode);
+            const mn=document.createElement("button"); mn.className="btn ghost"; mn.textContent="Menu"; mn.onclick=menu; rr.appendChild(ag); rr.appendChild(mn); panel.appendChild(rr); return; }
+          const rr=document.createElement("div"); rr.className="btnrow";
+          const canAct = !busy && !(mode==="ai"&&turn===1);
+          const rb=document.createElement("button"); rb.className="btn"; rb.textContent="🎲 Roll"; rb.disabled=!canAct; rb.onclick=()=>humanRoll(); rr.appendChild(rb);
+          const bk=document.createElement("button"); bk.className="btn ghost"; bk.textContent="🏦 Bank ("+turnPts+")"; bk.disabled=!canAct||turnPts<=0; bk.onclick=()=>bank(); rr.appendChild(bk);
+          panel.appendChild(rr);
+        }
+        function doRoll(){ // mutate state, return outcome type
+          if(Math.random()<OINK){ dice=[Math.random()<.5?"snouter":"razorback",Math.random()<.5?"trotter":"snouter"]; total[turn]=0; turnPts=0; last="OINKER! Billy's bumped noses — lose it all! 🐽"; lastBad=true; return "oinker"; }
+          dice=[rollPose(),rollPose()]; const cmb=combo(dice[0],dice[1]);
+          if(cmb.pigout){ turnPts=0; last=cmb.name+" — turn lost!"; lastBad=true; return "pigout"; }
+          turnPts+=cmb.pts; last=cmb.name+"  (+"+cmb.pts+")"; lastBad=false;
+          if(total[turn]+turnPts>=TARGET){ total[turn]+=turnPts; turnPts=0; over=true; return "win"; }
+          return "score";
+        }
+        function endTurn(){ turn=turn===0?1:0; turnPts=0; if(mode==="ai"&&turn===1&&!over){ busy=true; render(); setTimeout(aiStep,700); } else { busy=false; render(); } }
+        function humanRoll(){ if(busy||over)return; sfx.blip(); const r=doRoll();
+          if(r==="win"){ over=true; api.submit("pigs",total[turn]); sfx.win(); render(); return; }
+          if(r==="pigout"||r==="oinker"){ sfx.bad(); render(); setTimeout(endTurn,900); return; }
+          sfx.good(); render(); }
+        function bank(){ if(busy||over||turnPts<=0)return; total[turn]+=turnPts; turnPts=0; sfx.good();
+          if(total[turn]>=TARGET){ over=true; if(mode==="ai"&&turn===0)api.submit("pigs",total[turn]); sfx.win(); render(); return; } endTurn(); }
+        function aiStep(){ if(over||turn!==1){ return; }
+          const r=doRoll();
+          if(r==="win"){ over=true; sfx.win(); busy=false; render(); return; }
+          render();
+          if(r==="pigout"||r==="oinker"){ sfx.bad(); setTimeout(()=>{ endTurn(); },1000); return; }
+          sfx.blip();
+          // AI strategy: bank at ~21, or push harder if behind, or bank if it wins
+          const behind = total[1] < total[0];
+          const threshold = behind? 26 : 20;
+          if(total[1]+turnPts>=TARGET){ total[1]+=turnPts; turnPts=0; over=true; sfx.win(); busy=false; render(); return; }
+          if(turnPts>=threshold){ total[1]+=turnPts; turnPts=0; last="Billy banks it."; render(); setTimeout(endTurn,700); }
+          else setTimeout(aiStep,700);
+        }
+        menu(); window.__lastGame={ _test:{combo,rollPose,POSES,VAL,DBL}, get total(){return total;}, get turnPts(){return turnPts;} };
+        return ()=>{};
+      },
+      _test:{combo,rollPose,POSES,VAL,DBL} };
+  })();
+
+  const GAMES=[Snake,Breakout,Memory,Connect,Pigs];
   function renderMenu(){ const cards=document.getElementById("cards"); cards.innerHTML="";
     GAMES.forEach((g,i)=>{ const c=el("button","card"); c.style.background = i%2? "linear-gradient(150deg,var(--b),var(--a))":"linear-gradient(150deg,var(--a),var(--b))"; if(i%4===2)c.style.background="linear-gradient(150deg,var(--c),var(--a))";
       c.appendChild(el("span","em",g.emoji)); c.appendChild(document.createTextNode(g.title)); c.appendChild(el("small",null,g.desc||"")); c.onclick=()=>openGame(g); cards.appendChild(c); }); }
   renderMenu();
-  window.__classicsTest={ Snake, Breakout, Memory, Connect, openGame, toMenu, el, P };
+  window.__classicsTest={ Snake, Breakout, Memory, Connect, Pigs, openGame, toMenu, el, P };
 })();
 </script>
 </body>
