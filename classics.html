@@ -257,8 +257,13 @@
       return {pts:VAL[a]+VAL[b],name:NICE[a]+" + "+NICE[b]};
     }
     function rrp(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
-    function drawDog(c,x,y,s,pose){
+    const DOGIMG={billy:new Image(), brax:new Image()}; DOGIMG.billy.src="billy.png"; DOGIMG.brax.src="brax.png";
+    function drawDog(c,x,y,s,pose,img){
       const rot={trotter:0,"side-nodot":1.45,"side-dot":1.45,razorback:Math.PI,snouter:-0.5,jowler:-0.95}[pose]||0;
+      if(img && img.complete && img.naturalWidth>0){ const R=34*s; c.save(); c.translate(x,y); c.rotate(rot); c.beginPath(); c.arc(0,0,R,0,7); c.clip();
+        const ar=img.naturalWidth/img.naturalHeight; let w=2*R,h=2*R; if(ar>=1)w=2*R*ar; else h=2*R/ar; c.drawImage(img,-w/2,-h/2,w,h); c.restore();
+        c.strokeStyle="#4a3018"; c.lineWidth=3; c.beginPath(); c.arc(x,y,R,0,7); c.stroke();
+        if(pose==="side-dot"){ c.fillStyle="#fff"; c.beginPath(); c.arc(x,y-R-4,4,0,7); c.fill(); } return; }
       c.save(); c.translate(x,y); c.rotate(rot); c.scale(s,s);
       c.strokeStyle="#5a3d22"; c.lineWidth=5; c.lineCap="round";
       c.beginPath(); c.moveTo(-16,10);c.lineTo(-16,26); c.moveTo(-6,10);c.lineTo(-6,26); c.moveTo(14,10);c.lineTo(14,26); c.moveTo(24,10);c.lineTo(24,26); c.stroke();
@@ -286,8 +291,9 @@
         function start(m){ mode=m; total=[0,0]; turn=0; turnPts=0; over=false; last="Roll to start!"; lastBad=false; dice=["trotter","razorback"]; busy=false; render(); }
         function drawScene(){ cctx.fillStyle="#254a2a"; cctx.fillRect(0,0,420,200);
           cctx.fillStyle="rgba(255,255,255,.06)"; for(let i=0;i<420;i+=30)cctx.fillRect(i,0,15,200);
-          drawDog(cctx,140,110,1.15,dice[0]); drawDog(cctx,290,110,1.15,dice[1]);
-          cctx.fillStyle=lastBad?"#ff6b6b":"#ffd84d"; cctx.font="bold 20px Trebuchet MS"; cctx.textAlign="center"; cctx.fillText(last,210,30);
+          drawDog(cctx,140,108,1.2,dice[0],DOGIMG.billy); drawDog(cctx,290,108,1.2,dice[1],DOGIMG.brax);
+          cctx.fillStyle="#fff"; cctx.font="bold 12px Trebuchet MS"; cctx.textAlign="center"; cctx.fillText("🐾 Billy",140,182); cctx.fillText("🐾 Brax",290,182);
+          cctx.fillStyle=lastBad?"#ff6b6b":"#ffd84d"; cctx.font="bold 20px Trebuchet MS"; cctx.textAlign="center"; cctx.fillText(last,210,28);
         }
         function render(){ panel.innerHTML=""; const nm=names();
           const sb=document.createElement("div"); sb.style.cssText="display:flex;justify-content:space-around;margin:4px 0 2px;font-weight:bold;";

@@ -118,7 +118,6 @@ window.ARCADE = (function(){
     let qualifies=true;
     try{ const r=await fetch("/.netlify/functions/scores",{cache:"no-store"}); if(r.ok){ const data=await r.json(); const list=data[profile+":"+game]||[]; qualifies = list.length<10 || score>(list[list.length-1]?list[list.length-1].score:0); } }catch(e){ qualifies=true; }
     if(!qualifies) return;
-    hype(); // "OH YEAH" — a new top score!
     const name=await promptName(lastName(defName), score);
     if(name===null) return;
     try{ fetch("/.netlify/functions/scores",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:profile, game:game, name:name, score:score})}).catch(function(){}); }catch(e){}
