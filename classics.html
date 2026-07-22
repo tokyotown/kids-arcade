@@ -65,6 +65,7 @@
   <div class="toast" id="toast"></div>
 <script>window.ARCADE_TRACK="fun";</script>
 <script src="arcade-extras.js"></script>
+<script src="dogs.js"></script>
 <script>
 "use strict";
 (function(){
@@ -257,7 +258,7 @@
       return {pts:VAL[a]+VAL[b],name:NICE[a]+" + "+NICE[b]};
     }
     function rrp(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
-    const DOGIMG={billy:new Image(), brax:new Image()}; DOGIMG.billy.src="billy.png"; DOGIMG.brax.src="brax.png";
+    const DOGIMG={billy:new Image(), brax:new Image()}; DOGIMG.billy.src=(window.DOG_BILLY||"billy.png"); DOGIMG.brax.src=(window.DOG_BRAX||"brax.png");
     function drawDog(c,x,y,s,pose,img){
       const rot={trotter:0,"side-nodot":1.45,"side-dot":1.45,razorback:Math.PI,snouter:-0.5,jowler:-0.95}[pose]||0;
       if(img && img.complete && img.naturalWidth>0){ const R=34*s; c.save(); c.translate(x,y); c.rotate(rot); c.beginPath(); c.arc(0,0,R,0,7); c.clip();
